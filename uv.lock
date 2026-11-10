@@ -400,7 +400,7 @@ wheels = [
 
 [[package]]
 name = "quentangled"
-version = "0.0.1" # x-release-please-version
+version = "0.1.0" # x-release-please-version
 source = { editable = "." }
 
 [package.dev-dependencies]
