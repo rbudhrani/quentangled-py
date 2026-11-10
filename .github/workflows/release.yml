@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ==========================================
+  # JOB 1: Release Please
+  # ==========================================
+  release_please:
+    name: Create or update release PR
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_sha == github.sha
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release_please.outputs.release_created }}
+      tag_name: ${{ steps.release_please.outputs.tag_name }}
+    steps:
+      - name: Run Release Please
+        id: release_please
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ==========================================
+  # JOB 2: Build Wheel and Source Distribution
+  # ==========================================
+  build:
+    name: Build (${{ matrix.os }})
+    needs: release_please
+    if: needs.release_please.outputs.release_created == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release_please.outputs.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install locked Python development dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Build wheel
+        run: uv run --no-sync maturin build --release --out dist
+
+      - name: Build source distribution
+        if: matrix.os == 'ubuntu-latest'
+        run: uv run --no-sync maturin sdist --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  # ==========================================
+  # JOB 3: Build Sphinx Documentation
+  # ==========================================
+  docs:
+    name: Build Sphinx documentation
+    needs: release_please
+    if: needs.release_please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release_please.outputs.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install locked documentation dependencies
+        run: uv sync --locked --group dev --group docs --no-install-project
+
+      - name: Build native extension
+        run: uv run --no-sync maturin develop --release
+
+      - name: Build Sphinx documentation
+        run: uv run --no-sync sphinx-build -W --keep-going -b html docs docs/_build/html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  # ==========================================
+  # JOB 4: Deploy Documentation to GitHub Pages
+  # ==========================================
+  deploy-docs:
+    name: Deploy documentation to GitHub Pages
+    needs: [release_please, docs]
+    if: needs.release_please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ==========================================
+  # JOB 5: Attach Assets
+  # ==========================================
+  attach-assets:
+    name: Attach assets to GitHub Release
+    needs: [release_please, build]
+    if: needs.release_please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release_please.outputs.tag_name }}
+          fail_on_unmatched_files: true
+          files: dist/*
+
+  # ==========================================
+  # JOB 6: Publish to PyPI
+  # ==========================================
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [release_please, attach-assets]
+    if: needs.release_please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/quentangled/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download release distributions
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

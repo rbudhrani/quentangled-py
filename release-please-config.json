@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "uv.lock"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # JOB 1: Quality
+  # ==========================================
+  quality:
+    name: Format, Lint, and Type Checking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --locked --lib -- -D warnings
+
+      - name: Install locked Python development dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Check Python lint
+        run: uv run --no-sync ruff check python tests
+
+      - name: Check Python formatting
+        run: uv run --no-sync ruff format --check python tests
+
+      - name: Check Python API types
+        run: uv run --no-sync ty check python tests
+
+  # ==========================================
+  # JOB 2: Documentation
+  # ==========================================
+  docs:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install locked Python development and documentation dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Build native extension
+        run: uv run --no-sync maturin develop --release
+
+      - name: Build Sphinx documentation
+        run: uv run --no-sync sphinx-build -W --keep-going -b html docs docs/_build/html
+
+  # ==========================================
+  # JOB 3: Tests
+  # ==========================================
+  tests:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install locked Python development dependencies
+        run: uv sync --locked --all-groups --no-install-project
+
+      - name: Build native extension
+        run: uv run --no-sync maturin develop --release
+
+      - name: Run Python tests
+        run: uv run --no-sync pytest -q

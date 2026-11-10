@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a problem with Quentangled.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting, please check whether an issue about this problem already exists.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal Python example or circuit that reproduces the problem.
+      render: python
+      placeholder: |
+        from quentangled import Circuit, Simulator
+
+        circuit = Circuit(2)
+        # Add the operations needed to reproduce the problem.
+        result = Simulator().execute(circuit)
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result or error
+      description: Include the observed output or complete error message.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: quentangled-version
+    attributes:
+      label: Quentangled version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: e.g. 3.14
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: e.g. Ubuntu 24.04, macOS 15, Windows 11
+    validations:
+      required: true

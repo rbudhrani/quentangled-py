@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+target/
+dist/
+docs/_build/
+python/quentangled/_quentangled*.so
+python/quentangled/_quentangled*.dylib
+python/quentangled/_quentangled*.dll
+python/quentangled/_quentangled*.pyd

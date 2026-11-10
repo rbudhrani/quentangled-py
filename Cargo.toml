@@ -1,0 +1,17 @@
+[package]
+name = "quentangled-py"
+repository = "https://github.com/rbudhrani/quentangled-py"
+homepage = "https://github.com/rbudhrani/quentangled-py"
+version = "0.0.1"
+readme = "README.md"
+license = "Apache-2.0"
+edition = "2024"
+
+[lib]
+name = "_quentangled"
+crate-type = ["cdylib"]
+
+[dependencies]
+quentangled = { version = "0.1.0" }
+num-complex = "0.4.6"
+pyo3 = { version = "=0.29.2", features = ["abi3-py314", "extension-module", "num-complex"] }
