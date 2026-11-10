@@ -2,7 +2,7 @@
 name = "quentangled-py"
 repository = "https://github.com/rbudhrani/quentangled-py"
 homepage = "https://github.com/rbudhrani/quentangled-py"
-version = "0.0.1"
+version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0"
 edition = "2024"

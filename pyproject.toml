@@ -1,7 +1,7 @@
 [project]
 name = "quentangled"
 # x-release-please-start-version
-version = "0.0.1"
+version = "0.1.0"
 # x-release-please-end
 description = "Quantum circuit simulator."
 requires-python = ">=3.14"
